@@ -1,0 +1,72 @@
+@page "/process/{Id:int}"  
+
+@using BlazorApp.Data
+@using ElectronNET.API
+@using ElectronNET.API.Entities
+@inject ProcessService ProcessService
+@inject NavigationManager UriHelper
+
+<h1>Process view</h1>
+
+<p>This component displays details for a single system process.</p>
+
+@if (process == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div>
+        <dl class="row">
+            @foreach (var property in @PropertyList.Select(name => typeof(System.Diagnostics.Process).GetProperty(name)))
+            {
+            <dt class="col-sm-4">
+                @property.Name
+            </dt>
+            <dd class="col-sm-8">
+                @property.GetValue(process)
+            </dd>
+            }
+        </dl>
+    </div>
+    <div>
+        <hr />
+        <button class="btn btn-danger" @onclick="@(() => Delete())">Kill Process</button>
+        <a class="btn btn-light" href="processes">Back to List</a>
+    </div>
+}
+
+@code {
+    private System.Diagnostics.Process process;
+    private static readonly string[] PropertyList = new[]
+    {
+        "Id", "ProcessName", "PriorityClass", "WorkingSet64"
+    };
+
+    [Parameter]
+    public int Id { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        process = System.Diagnostics.Process.GetProcessById(Id);
+    }
+    private async Task Delete()
+    {
+        const string msg = "Are you sure you want to kill this process?";
+        MessageBoxOptions options = new MessageBoxOptions(msg);
+        options.Type = MessageBoxType.question;
+        options.Buttons = new string[] {"No", "Yes"};
+        options.DefaultId = 1;
+        options.CancelId = 0;
+        MessageBoxResult result = await Electron.Dialog.ShowMessageBoxAsync(options);
+
+        if (result.Response == 1)
+        {
+            await Task.Run(() =>
+            {
+                process.Kill();
+                UriHelper.NavigateTo("processes");
+            });
+        }
+    }
+}
